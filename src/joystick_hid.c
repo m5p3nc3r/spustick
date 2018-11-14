@@ -10,7 +10,8 @@
 #include "joystick_hid.h"
 #include "joystick_input.h"
 
-LOG_MODULE_REGISTER(joystick_hid)
+#include <logging/log.h>
+LOG_MODULE_REGISTER(joystick_hid);
 #define USE_DEBUG_JOYSTICK 0
 
 #define INPUT_DATA          (0U << 0)
