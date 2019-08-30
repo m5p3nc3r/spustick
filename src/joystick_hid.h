@@ -1,6 +1,8 @@
 #ifndef _joystick_hid_h
 #define _joystick_hid_h
 
+#define NUM_JOYSTICKS 2
+
 typedef struct {
   // Keep this the same form as the Descriptor
   union {
@@ -19,5 +21,9 @@ typedef struct {
   s8_t x;
   s8_t y;
 } joystickState;
+
+void joystick_post_update(int id, const joystickState *state);
+joystickState *joystick_hid_get_state(int id);
+
 
 #endif

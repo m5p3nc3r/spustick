@@ -12,7 +12,6 @@
 
 #include <logging/log.h>
 LOG_MODULE_REGISTER(joystick_hid);
-#define USE_DEBUG_JOYSTICK 0
 
 #define INPUT_DATA          (0U << 0)
 #define INPUT_CONSTANT      (1U << 0)
@@ -51,43 +50,16 @@ LOG_MODULE_REGISTER(joystick_hid);
 static const u8_t hid_report[] = {
   JOYSTICK_REPORT(1), // Report ID 0 is invalid
 #if NUM_JOYSTICKS>1
-  JOYSTICK_REPORT(2)
+  JOYSTICK_REPORT(2),
 #endif
 };
 
 
 
 void hid_worker_handler(struct k_work *work);
-void hid_timer_handler(struct k_timer *timer);
+//void hid_timer_handler(struct k_timer *timer);
 K_WORK_DEFINE(hid_worker, hid_worker_handler);
-K_TIMER_DEFINE(hid_timer, hid_timer_handler, NULL);
-
-
-static int debug_cb(struct usb_setup_packet *setup, s32_t *len, u8_t **data)
-{
-	LOG_INF("Debug callback");
-
-	return -ENOTSUP;
-}
-
-static int set_idle_cb(struct usb_setup_packet *setup, s32_t *len, u8_t **data)
-{
-  // This sets the time between packets - for a joystick, this should be 0
-  LOG_INF("Set idle callback");
-
-  k_timer_start(&hid_timer, K_MSEC(40), K_MSEC(40));
-
-	return 0;
-}
-
-static int get_report_cb(struct usb_setup_packet *setup, s32_t *len, u8_t **data)
-{
-	LOG_INF("Get report callback");
-
-  // Should never be called for a joystick, we are continually sending reports
-
-	return 0;
-}
+//K_TIMER_DEFINE(hid_timer, hid_timer_handler, NULL);
 
 static bool connected=false;
 
@@ -110,14 +82,7 @@ static void status_cb(enum usb_dc_status_code status, const u8_t *param)
 	}
 }
 
-
 static const struct hid_ops ops = {
-  .get_report = get_report_cb,
-  .get_idle = debug_cb,
-  .get_protocol = debug_cb,
-  .set_report = debug_cb,
-  .set_idle = set_idle_cb,
-  .set_protocol = debug_cb,
   .status_cb = status_cb,
 };
 
@@ -126,51 +91,44 @@ typedef struct {
   joystickState state;
 } joystickReport;
 
-static struct {
-  joystickReport joystick[NUM_JOYSTICKS];
-} hidReports;
-
-#if USE_DEBUG_JOYSTICK
-static void joystick_debug(joystickState *state) {
-  static s8_t x=0, y=0;
-  static u8_t b=0;
-
-  state->x=x++;
-  state->y=y--;
-  state->buttons = b++;
-}
-#endif
+typedef struct {
+  struct k_work work;
+  joystickReport report;
+} joystickWorker;
+static joystickWorker joystickWorkers[NUM_JOYSTICKS];
 
 // Not sure this is the right way to do this, but hacking this in here for now
 static struct device *hid_dev;
 
 void hid_worker_handler(struct k_work *work) {
-  // Iterate over the joysticks and transmit the state
-  for(int joystickId=0; joystickId<NUM_JOYSTICKS; joystickId++) {
-    joystickReport *report = &hidReports.joystick[joystickId];
-#if USE_DEBUG_JOYSTICK
-    joystick_debug(&report->state);
-#else
-    joystick_input_read(joystickId, &report->state);
-#endif
-  // Transmit the state
+  joystickWorker *worker=CONTAINER_OF(work, joystickWorker, work);
+
+  hid_int_ep_write(hid_dev, (char *)&worker->report, sizeof(joystickReport), NULL);
+}
+
+void joystick_post_update(int id, const joystickState *state) {
+  if(id<NUM_JOYSTICKS) {
+    joystickWorker *worker=&joystickWorkers[id];
+    // Copy over the state
+    memcpy(&worker->report.state, state, sizeof(joystickState));
+    // Post the work
     if(connected) {
-      hid_int_ep_write(hid_dev, (char *)report, sizeof(joystickReport), NULL);
+      k_work_submit(&worker->work);
     }
   }
 }
 
-void hid_timer_handler(struct k_timer *timer) {
-  // Can't guarantee that the HID processing won't block, so use a worker
-  k_work_submit(&hid_worker);
+joystickState *joystick_hid_get_state(int id) {
+  joystickState *ret=id<NUM_JOYSTICKS ? &joystickWorkers[id].report.state : NULL;
+  return ret;
 }
 
 static int joystick_hid_init(struct device *dev)
 {
 	ARG_UNUSED(dev);
 
-	// Initialise the joystick input interfaces
-	joystick_input_init();
+  // Initialise the joystick input interfaces
+  joystick_input_init();
 
 	// Initialise the HID output interfaces
 	hid_dev = device_get_binding("HID_0");
@@ -182,7 +140,8 @@ static int joystick_hid_init(struct device *dev)
 	usb_hid_register_device(hid_dev, hid_report, sizeof(hid_report), &ops);
   // Initialise report ids
   for(int j=0; j<NUM_JOYSTICKS; j++) {
-    hidReports.joystick[j].id = j+1;
+    joystickWorkers[j].report.id = j+1;
+    k_work_init(&joystickWorkers[j].work, hid_worker_handler);
   }
 
 	return usb_hid_init(hid_dev);

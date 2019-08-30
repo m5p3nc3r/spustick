@@ -12,6 +12,8 @@ LOG_MODULE_REGISTER(input);
 #include "joystick_input.h"
 #include "joystick_hid.h"
 
+#define USE_DEBUG_JOYSTICK 1
+
 #define INPUT_JOYSTICK_UP    0
 #define INPUT_JOYSTICK_DOWN  1
 #define INPUT_JOYSTICK_LEFT  2
@@ -67,7 +69,33 @@ void joystick_input_read(int id, joystickState *state) {
   }
 }
 
+#if USE_DEBUG_JOYSTICK
+static int debugJoystickId=0;
+static void joystick_debug_update_state(joystickState *state) {
+  static s8_t x=0, y=0;
+  static u8_t b=0;
+
+  state->x=x++;
+  state->y=y--;
+  state->buttons = b++;
+}
+
+static void joystick_debug_emit(struct k_timer *timer) {
+  ARG_UNUSED(timer);
+  joystickState *state=joystick_hid_get_state(debugJoystickId);
+  joystick_debug_update_state(state);
+  joystick_post_update(debugJoystickId, state);
+  debugJoystickId+=1;
+  if(debugJoystickId==NUM_JOYSTICKS) debugJoystickId=0;
+}
+
+K_TIMER_DEFINE(joystick_debug_timer, joystick_debug_emit, NULL);
+#endif
+
 void joystick_input_init() {
+#if USE_DEBUG_JOYSTICK
+  k_timer_start(&joystick_debug_timer, K_MSEC(40), K_MSEC(40));
+#else
   int ret;
   inputDev = device_get_binding(INPUT_DRV_NAME);
   if(!inputDev) {
@@ -86,4 +114,5 @@ void joystick_input_init() {
       return;
     }
   }
+#endif
 }
