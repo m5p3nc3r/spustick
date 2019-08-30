@@ -141,6 +141,9 @@ static void joystick_debug(joystickState *state) {
 }
 #endif
 
+// Not sure this is the right way to do this, but hacking this in here for now
+static struct device *hid_dev;
+
 void hid_worker_handler(struct k_work *work) {
   // Iterate over the joysticks and transmit the state
   for(int joystickId=0; joystickId<NUM_JOYSTICKS; joystickId++) {
@@ -152,7 +155,7 @@ void hid_worker_handler(struct k_work *work) {
 #endif
   // Transmit the state
     if(connected) {
-      hid_int_ep_write((char *)report, sizeof(joystickReport), NULL);
+      hid_int_ep_write(hid_dev, (char *)report, sizeof(joystickReport), NULL);
     }
   }
 }
@@ -164,15 +167,25 @@ void hid_timer_handler(struct k_timer *timer) {
 
 static int joystick_hid_init(struct device *dev)
 {
-  joystick_input_init();
+	ARG_UNUSED(dev);
 
-	usb_hid_register_device(hid_report, sizeof(hid_report), &ops);
+	// Initialise the joystick input interfaces
+	joystick_input_init();
+
+	// Initialise the HID output interfaces
+	hid_dev = device_get_binding("HID_0");
+	if(hid_dev == NULL) {
+		LOG_ERR("Cannot get USB HID Device");
+		return -ENODEV;
+	}
+
+	usb_hid_register_device(hid_dev, hid_report, sizeof(hid_report), &ops);
   // Initialise report ids
   for(int j=0; j<NUM_JOYSTICKS; j++) {
     hidReports.joystick[j].id = j+1;
   }
 
-	return usb_hid_init();
+	return usb_hid_init(hid_dev);
 }
 
 SYS_INIT(joystick_hid_init, APPLICATION, CONFIG_KERNEL_INIT_PRIORITY_DEVICE);
