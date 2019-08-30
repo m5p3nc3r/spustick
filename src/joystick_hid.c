@@ -29,11 +29,11 @@ LOG_MODULE_REGISTER(joystick_hid);
                                               \
       HID_GI_USAGE_PAGE, USAGE_GEN_BUTTON,    \
       HID_LI_USAGE_MIN(1), 0x01,              \
-      HID_LI_USAGE_MAX(1), 0x08,              \
+      HID_LI_USAGE_MAX(1), NUM_BUTTONS,              \
       HID_GI_LOGICAL_MIN(1), 0x00,            \
       HID_GI_LOGICAL_MAX(1), 0x01,            \
       HID_GI_REPORT_SIZE, 1,                  \
-      HID_GI_REPORT_COUNT, 8,                 \
+      HID_GI_REPORT_COUNT, NUM_BUTTONS,                 \
       HID_MI_INPUT, INPUT_DATA | INPUT_VARIABLE | INPUT_ABSOLUTE, \
                                               \
       HID_GI_USAGE_PAGE, USAGE_GEN_DESKTOP,   \

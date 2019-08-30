@@ -2,6 +2,8 @@
 #define _joystick_hid_h
 
 #define NUM_JOYSTICKS 2
+// Number of buttons per joystick
+#define NUM_BUTTONS 4
 
 typedef struct {
   // Keep this the same form as the Descriptor
