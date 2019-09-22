@@ -39,7 +39,7 @@ LOG_MODULE_REGISTER(ws2812_led);
 
 
 #define STRIP_DEV_NAME DT_INST_0_WORLDSEMI_WS2812_LABEL
-#define STRIP_NUM_LEDS 1
+#define STRIP_NUM_LEDS 2
 #define DELAY_TIME K_MSEC(40)
 
 //30
@@ -69,9 +69,35 @@ u8_t phase_step(phase *p) {
   return p->val;
 }
 
-void main(void) {
-	struct device *strip;
 
+static struct device *strip;
+static phase red, green, blue;
+
+void led_work_handler(struct k_work *work) {
+  int err;
+  err=led_strip_update_rgb(strip, &strip_colors[0], STRIP_NUM_LEDS);
+  LOG_ERR("Led update %d",err);
+}
+K_WORK_DEFINE(led_work, led_work_handler);
+
+static void led_emit(struct k_timer *timer) {
+  ARG_UNUSED(timer);
+  int err;
+
+//  LOG_ERR("LED_EMIT %p", strip);
+
+  for(int i=0; i<STRIP_NUM_LEDS; i++) {
+    strip_colors[i].r=phase_step(&red);
+    strip_colors[i].g=phase_step(&green);
+    strip_colors[i].b=phase_step(&blue);
+  }
+
+  k_work_submit(&led_work);
+}
+
+K_TIMER_DEFINE(led_timer, led_emit, NULL);
+
+void leds_init(void) {
 	LOG_INF("Starting ws2812 code...");
   strip = device_get_binding(STRIP_DEV_NAME);
   if(!strip) {
@@ -80,19 +106,9 @@ void main(void) {
   }
   LOG_ERR("Setup ok");
 
-  phase red, green, blue;
   phase_init(&red, 0, 1);
   phase_init(&green, 0, 2);
   phase_init(&blue, 0, 3);
 
-  while(true) {
-    for(int i=0; i<STRIP_NUM_LEDS; i++) {
-      strip_colors[i].r=phase_step(&red);
-      strip_colors[i].g=phase_step(&green);
-      strip_colors[i].b=phase_step(&blue);
-  //    LOG_ERR("%d %d", blue.val, blue.step);
-    }
-    led_strip_update_rgb(strip, &strip_colors[0], STRIP_NUM_LEDS);
-    k_sleep(DELAY_TIME);
-  }
+  k_timer_start(&led_timer, K_MSEC(40), K_MSEC(40));
 }

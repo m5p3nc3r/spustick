@@ -12,7 +12,7 @@ LOG_MODULE_REGISTER(input);
 #include "joystick_input.h"
 #include "joystick_hid.h"
 
-#define USE_DEBUG_JOYSTICK 1
+#define USE_DEBUG_JOYSTICK 0
 
 #define INPUT_JOYSTICK_UP    0
 #define INPUT_JOYSTICK_DOWN  1
