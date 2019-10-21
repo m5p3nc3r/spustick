@@ -76,7 +76,9 @@ static phase red, green, blue;
 void led_work_handler(struct k_work *work) {
   int err;
   err=led_strip_update_rgb(strip, &strip_colors[0], STRIP_NUM_LEDS);
-  LOG_ERR("Led update %d",err);
+  if(err!=0) {
+    LOG_ERR("Led update error code %d",err);
+  }
 }
 K_WORK_DEFINE(led_work, led_work_handler);
 

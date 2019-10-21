@@ -1,6 +1,6 @@
 #include <zephyr.h>
 
-extern void leds_init(void);
+#include "leds.h"
 
 void main(void) {
   leds_init();
