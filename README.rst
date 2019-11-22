@@ -24,31 +24,22 @@ TODO:
 * hidviz
 
 --------------------
-These are notes to myself for setting up my development environment.
-Your mileage may vary!
-Windows (git bash shell)
+# These are notes to myself for setting up my development environment.
+# Building on Linux (Fedora 31)
+Initialise the west tool as per instructions [here](https://docs.zephyrproject.org/latest/guides/west/install.html)
+Install an SDK as per instructions [here](https://docs.zephyrproject.org/latest/getting_started/installation_linux.html#zephyr-sdk)
 
-<from project directory>
-export ZEPHYR_TOOLCHAIN_VARIANT=gnuarmemb
-export GNUARMEMB_TOOLCHAIN_PATH=/c/Program\ Files\ \(x86\)/GNU\ Tools\ Arm\ Embedded/7\ 2018-q2-update/
-export PATH=$PATH:$HOME/projects/dfu
-pushd $HOME/projects/zephyr
+# get the latest version of Zephyr using the west tool
+west init zerphyproject
+cd zephyrproject
+west update
+
+# in the spustick project directory
+export ZEPHYR_TOOLCHAIN_VARIANT=zephyr
+export ZEPHYR_SDK_INSTALL_DIR=$HOME/projects/zephyr-sdk-0.10.3/
+pushd $HOME/projects/zephyrproject/zephyr
 source zephyr-env.sh
 popd
-mkdir -p build && cd build
-cmake -GNinja -DBOARD=96b_carbon ..
-ninja flash
 
---------------------
-Building on linux (Fedora 30)
-
-Follow the instructions to enable non-root access to usb devices with dfu-util
-  https://wiki.yoctoproject.org/wiki/TipsAndTricks/BuildingZephyrImages
-You need to ensure the idVendor and idProduct match your device
-
-export ZEPHYR_TOOLCHAIN_VARIANT=zephyr
-export ZEPHYR_SDK_INSTALL_DIR=$HOME/projects/zephyr-sdk/
-pushd $HOME/projects/zephyr && source zephyr-env.sh && popd
-mkdir -p build && cd build
-cmake -GNinja -DBOARD=96b_carbon ..
-ninja flash
+west build -b 96b_carbon
+west flash
